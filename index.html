@@ -240,12 +240,12 @@
       const monto = parseFloat(document.getElementById('monto').value);
 
       if (!concepto || isNaN(monto)) {
-        alert("Por favor complete todos los campos correctamente.");
+        alert("Por favor complete todos los campos.");
         return;
       }
 
       let cuotas = 1;
-      let mesesFijos = 1;
+      let mesesFijos = 12;
 
       if (tipo === 'normal') {
         cuotas = parseInt(document.getElementById('cuotas').value);
@@ -254,24 +254,26 @@
           return;
         }
       } else {
-        mesesFijos = parseInt(document.getElementById('mesesFijos').value) || 12;
+        const inputMeses = document.getElementById('mesesFijos').value;
+        mesesFijos = inputMeses ? parseInt(inputMeses) : 12;
       }
 
       const fechaActual = new Date();
       const proyecciones = [];
+      const montoPorCuota = monto.toFixed(2);
 
       for (let i = 1; i <= (tipo === 'normal' ? cuotas : mesesFijos); i++) {
         const fecha = new Date(fechaActual);
         fecha.setMonth(fecha.getMonth() + i);
         const mesAnio = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-        proyecciones.push({ mes: mesAnio, monto: parseFloat((monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2)) });
+        proyecciones.push({ mes: mesAnio, monto: parseFloat(montoPorCuota) });
       }
 
       const nuevoConsumo = {
         concepto,
         total: monto.toFixed(2),
         cuotas: tipo === 'normal' ? cuotas : null,
-        montoPorCuota: parseFloat((monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2)),
+        montoPorCuota: parseFloat(montoPorCuota),
         tipo,
         proyecciones
       };
