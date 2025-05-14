@@ -39,12 +39,6 @@
       border-radius: 6px;
       font-size: 1em;
     }
-    select {
-      width: calc(100% - 20px);
-      padding: 10px;
-      margin-bottom: 15px;
-      font-size: 1em;
-    }
     button {
       padding: 10px 15px;
       margin-right: 10px;
@@ -95,24 +89,11 @@
       <label for="concepto">Concepto:</label>
       <input type="text" id="concepto" placeholder="Ej: Compra online" required />
 
-      <label for="tipoConsumo">Tipo de Consumo:</label>
-      <select id="tipoConsumo">
-        <option value="normal">Normal (con cuotas)</option>
-        <option value="fijo">Fijo (mensual)</option>
-      </select>
-
       <label for="monto">Monto:</label>
       <input type="number" id="monto" step="0.01" placeholder="Ej: 150.00" required />
 
-      <div id="camposCuotas">
-        <label for="cuotas">Número de Cuotas:</label>
-        <input type="number" id="cuotas" min="1" placeholder="Ej: 3" required />
-      </div>
-
-      <div id="camposMesesFijos" style="display:none;">
-        <label for="mesesFijos">Duración (meses):</label>
-        <input type="number" id="mesesFijos" min="1" placeholder="Ej: 6" />
-      </div>
+      <label for="cuotas">Número de Cuotas:</label>
+      <input type="number" id="cuotas" min="1" placeholder="Ej: 3" required />
 
       <button type="submit" class="btn-agregar">Agregar Consumo</button>
     </form>
@@ -125,7 +106,6 @@
           <th>Monto Total</th>
           <th>Cuotas</th>
           <th>Monto por Cuota</th>
-          <th>Tipo</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -174,9 +154,8 @@
         fila.innerHTML = `
           <td>${item.concepto}</td>
           <td>$${parseFloat(item.total).toFixed(2)}</td>
-          <td>${item.cuotas || '-'}</td>
+          <td>${item.cuotas}</td>
           <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
-          <td>${item.tipo === 'fijo' ? 'Fijo' : 'Normal'}</td>
           <td>
             <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
           </td>
@@ -226,42 +205,23 @@
         });
     }
 
-    document.getElementById('tipoConsumo').addEventListener('change', function () {
-      const valor = this.value;
-      document.getElementById('camposCuotas').style.display = valor === 'normal' ? 'block' : 'none';
-      document.getElementById('camposMesesFijos').style.display = valor === 'fijo' ? 'block' : 'none';
-    });
-
     document.getElementById('consumoForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
       const concepto = document.getElementById('concepto').value.trim();
-      const tipo = document.getElementById('tipoConsumo').value;
       const monto = parseFloat(document.getElementById('monto').value);
+      const cuotas = parseInt(document.getElementById('cuotas').value);
 
-      if (!concepto || isNaN(monto)) {
+      if (!concepto || isNaN(monto) || isNaN(cuotas) || cuotas <= 0) {
         alert("Por favor complete todos los campos correctamente.");
         return;
       }
 
-      let cuotas = 1;
-      let mesesFijos = 1;
-
-      if (tipo === 'normal') {
-        cuotas = parseInt(document.getElementById('cuotas').value);
-        if (isNaN(cuotas) || cuotas <= 0) {
-          alert("Número de cuotas inválido");
-          return;
-        }
-      } else {
-        mesesFijos = parseInt(document.getElementById('mesesFijos').value) || 12;
-      }
-
+      const montoPorCuota = (monto / cuotas).toFixed(2);
       const fechaActual = new Date();
       const proyecciones = [];
-      const montoPorCuota = (monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2);
 
-      for (let i = 1; i <= (tipo === 'normal' ? cuotas : mesesFijos); i++) {
+      for (let i = 1; i <= cuotas; i++) {
         const fecha = new Date(fechaActual);
         fecha.setMonth(fecha.getMonth() + i);
         const mesAnio = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
@@ -271,9 +231,8 @@
       const nuevoConsumo = {
         concepto,
         total: monto.toFixed(2),
-        cuotas: tipo === 'normal' ? cuotas : null,
-        montoPorCuota: parseFloat(montoPorCuota),
-        tipo,
+        cuotas,
+        montoPorCuota,
         proyecciones
       };
 
@@ -282,8 +241,43 @@
       renderizarDatos();
 
       document.getElementById('consumoForm').reset();
-      document.getElementById('camposMesesFijos').style.display = 'none';
     });
+
+    function cargarDatos() {
+      const datosGuardados = localStorage.getItem(STORAGE_KEY);
+      if (datosGuardados) {
+        try {
+          consumos = JSON.parse(datosGuardados);
+        } catch (e) {
+          console.error("Error al cargar datos", e);
+        }
+      }
+    }
+
+    function guardarDatos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consumos));
+    }
+
+    function renderizarDatos() {
+      const tbody = document.querySelector('#tablaConsumos tbody');
+      tbody.innerHTML = '';
+
+      consumos.forEach((item, index) => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${item.concepto}</td>
+          <td>$${parseFloat(item.total).toFixed(2)}</td>
+          <td>${item.cuotas}</td>
+          <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
+          <td>
+            <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(fila);
+      });
+
+      actualizarResumenMensual();
+    }
 
     function actualizarResumenMensual() {
       const tbody = document.querySelector('#tablaResumenMensual tbody');
@@ -309,41 +303,11 @@
         });
     }
 
-    function guardarDatos() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consumos));
-    }
-
-    function cargarDatos() {
-      const datosGuardados = localStorage.getItem(STORAGE_KEY);
-      if (datosGuardados) {
-        try {
-          consumos = JSON.parse(datosGuardados);
-        } catch (e) {
-          console.error("Error al cargar datos", e);
-        }
-      }
-    }
-
-    function renderizarDatos() {
-      const tbody = document.querySelector('#tablaConsumos tbody');
-      tbody.innerHTML = '';
-
-      consumos.forEach((item, index) => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-          <td>${item.concepto}</td>
-          <td>$${parseFloat(item.total).toFixed(2)}</td>
-          <td>${item.cuotas || '-'}</td>
-          <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
-          <td>${item.tipo === 'fijo' ? 'Fijo' : 'Normal'}</td>
-          <td>
-            <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
-          </td>
-        `;
-        tbody.appendChild(fila);
-      });
-
-      actualizarResumenMensual();
+    function mesesFull(mesAnio) {
+      const [anio, mes] = mesAnio.split('-');
+      const fecha = new Date(anio, mes - 1);
+      const opciones = { month: 'long', year: 'numeric' };
+      return new Intl.DateTimeFormat('es-ES', opciones).format(fecha).toUpperCase();
     }
 
     // Inicialización
