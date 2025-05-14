@@ -240,12 +240,12 @@
       const monto = parseFloat(document.getElementById('monto').value);
 
       if (!concepto || isNaN(monto)) {
-        alert("Por favor complete todos los campos.");
+        alert("Por favor complete todos los campos correctamente.");
         return;
       }
 
       let cuotas = 1;
-      let mesesFijos = 12;
+      let mesesFijos = 1;
 
       if (tipo === 'normal') {
         cuotas = parseInt(document.getElementById('cuotas').value);
@@ -254,13 +254,12 @@
           return;
         }
       } else {
-        const inputMeses = document.getElementById('mesesFijos').value;
-        mesesFijos = inputMeses ? parseInt(inputMeses) : 12;
+        mesesFijos = parseInt(document.getElementById('mesesFijos').value) || 12;
       }
 
       const fechaActual = new Date();
       const proyecciones = [];
-      const montoPorCuota = monto.toFixed(2);
+      const montoPorCuota = (monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2);
 
       for (let i = 1; i <= (tipo === 'normal' ? cuotas : mesesFijos); i++) {
         const fecha = new Date(fechaActual);
