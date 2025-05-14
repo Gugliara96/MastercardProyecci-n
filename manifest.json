@@ -1,0 +1,21 @@
+{
+  "name": "Mastercard Proyección",
+  "short_name": "Proyección",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "description": "App para proyectar consumos con tarjeta de crédito.",
+  "theme_color": "#006464",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

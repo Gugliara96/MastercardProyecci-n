@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Proyección de Consumos de Tarjeta Mastercard</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192x192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="icon-512x512.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mastercard Proyección">
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 30px;
+      background-color: #f7f9fc;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #006464;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    input[type="number"], input[type="text"] {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin: 5px 0 15px 0;
+      display: block;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1em;
+    }
+    select {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 1em;
+    }
+    button {
+      padding: 10px 15px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-agregar {
+      background-color: #006464;
+      color: white;
+    }
+    .btn-editar {
+      background-color: #f39c12;
+      color: white;
+    }
+    .btn-eliminar {
+      background-color: #e74c3c;
+      color: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border-bottom: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #006464;
+      color: white;
+    }
+    .seccion-resumen {
+      margin-top: 30px;
+      background-color: #eaf6f6;
+      border-radius: 10px;
+      padding: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Proyección de Consumos de Tarjeta Mastercard</h1>
+
+    <form id="consumoForm">
+      <label for="concepto">Concepto:</label>
+      <input type="text" id="concepto" placeholder="Ej: Compra online" required />
+
+      <label for="tipoConsumo">Tipo de Consumo:</label>
+      <select id="tipoConsumo">
+        <option value="normal">Normal (con cuotas)</option>
+        <option value="fijo">Fijo (mensual)</option>
+      </select>
+
+      <label for="monto">Monto:</label>
+      <input type="number" id="monto" step="0.01" placeholder="Ej: 150.00" required />
+
+      <div id="camposCuotas">
+        <label for="cuotas">Número de Cuotas:</label>
+        <input type="number" id="cuotas" min="1" placeholder="Ej: 3" required />
+      </div>
+
+      <div id="camposMesesFijos" style="display:none;">
+        <label for="mesesFijos">Duración (meses):</label>
+        <input type="number" id="mesesFijos" min="1" placeholder="Ej: 6" />
+      </div>
+
+      <button type="submit" class="btn-agregar">Agregar Consumo</button>
+    </form>
+
+    <h2 style="margin-top: 30px;">Consumos Registrados</h2>
+    <table id="tablaConsumos">
+      <thead>
+        <tr>
+          <th>Concepto</th>
+          <th>Monto Total</th>
+          <th>Cuotas</th>
+          <th>Monto por Cuota</th>
+          <th>Tipo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="seccion-resumen">
+      <h2>Total Mensual Proyectado</h2>
+      <table id="tablaResumenMensual">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Total a Pagar</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'consumosTarjeta';
+    let consumos = [];
+
+    function cargarDatos() {
+      const datosGuardados = localStorage.getItem(STORAGE_KEY);
+      if (datosGuardados) {
+        try {
+          consumos = JSON.parse(datosGuardados);
+        } catch (e) {
+          console.error("Error al cargar datos", e);
+        }
+      }
+    }
+
+    function guardarDatos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consumos));
+    }
+
+    function renderizarDatos() {
+      const tbody = document.querySelector('#tablaConsumos tbody');
+      tbody.innerHTML = '';
+
+      consumos.forEach((item, index) => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${item.concepto}</td>
+          <td>$${parseFloat(item.total).toFixed(2)}</td>
+          <td>${item.cuotas || '-'}</td>
+          <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
+          <td>${item.tipo === 'fijo' ? 'Fijo' : 'Normal'}</td>
+          <td>
+            <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(fila);
+      });
+
+      actualizarResumenMensual();
+    }
+
+    function mesesFull(mesAnio) {
+      const [anio, mes] = mesAnio.split('-');
+      const fecha = new Date(anio, mes - 1);
+      const opciones = { month: 'long', year: 'numeric' };
+      return new Intl.DateTimeFormat('es-ES', opciones).format(fecha).toUpperCase();
+    }
+
+    function eliminarConsumo(index) {
+      if (confirm("¿Estás seguro de eliminar este consumo?")) {
+        consumos.splice(index, 1);
+        guardarDatos();
+        renderizarDatos();
+      }
+    }
+
+    function actualizarResumenMensual() {
+      const tbody = document.querySelector('#tablaResumenMensual tbody');
+      tbody.innerHTML = '';
+      const totalPorMes = {};
+
+      consumos.forEach(c => {
+        c.proyecciones.forEach(p => {
+          if (!totalPorMes[p.mes]) totalPorMes[p.mes] = 0;
+          totalPorMes[p.mes] += p.monto;
+        });
+      });
+
+      Object.keys(totalPorMes)
+        .sort()
+        .forEach(mes => {
+          const fila = document.createElement('tr');
+          fila.innerHTML = `
+            <td>${mesesFull(mes)}</td>
+            <td>$${totalPorMes[mes].toFixed(2)}</td>
+          `;
+          tbody.appendChild(fila);
+        });
+    }
+
+    document.getElementById('tipoConsumo').addEventListener('change', function () {
+      const valor = this.value;
+      document.getElementById('camposCuotas').style.display = valor === 'normal' ? 'block' : 'none';
+      document.getElementById('camposMesesFijos').style.display = valor === 'fijo' ? 'block' : 'none';
+    });
+
+    document.getElementById('consumoForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const concepto = document.getElementById('concepto').value.trim();
+      const tipo = document.getElementById('tipoConsumo').value;
+      const monto = parseFloat(document.getElementById('monto').value);
+
+      if (!concepto || isNaN(monto)) {
+        alert("Por favor complete todos los campos correctamente.");
+        return;
+      }
+
+      let cuotas = 1;
+      let mesesFijos = 1;
+
+      if (tipo === 'normal') {
+        cuotas = parseInt(document.getElementById('cuotas').value);
+        if (isNaN(cuotas) || cuotas <= 0) {
+          alert("Número de cuotas inválido");
+          return;
+        }
+      } else {
+        mesesFijos = parseInt(document.getElementById('mesesFijos').value) || 12;
+      }
+
+      const fechaActual = new Date();
+      const proyecciones = [];
+
+      for (let i = 1; i <= (tipo === 'normal' ? cuotas : mesesFijos); i++) {
+        const fecha = new Date(fechaActual);
+        fecha.setMonth(fecha.getMonth() + i);
+        const mesAnio = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+        proyecciones.push({ mes: mesAnio, monto: parseFloat((monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2)) });
+      }
+
+      const nuevoConsumo = {
+        concepto,
+        total: monto.toFixed(2),
+        cuotas: tipo === 'normal' ? cuotas : null,
+        montoPorCuota: parseFloat((monto / (tipo === 'normal' ? cuotas : 1)).toFixed(2)),
+        tipo,
+        proyecciones
+      };
+
+      consumos.push(nuevoConsumo);
+      guardarDatos();
+      renderizarDatos();
+
+      document.getElementById('consumoForm').reset();
+      document.getElementById('camposMesesFijos').style.display = 'none';
+    });
+
+    function actualizarResumenMensual() {
+      const tbody = document.querySelector('#tablaResumenMensual tbody');
+      tbody.innerHTML = '';
+      const totalPorMes = {};
+
+      consumos.forEach(c => {
+        c.proyecciones.forEach(p => {
+          if (!totalPorMes[p.mes]) totalPorMes[p.mes] = 0;
+          totalPorMes[p.mes] += p.monto;
+        });
+      });
+
+      Object.keys(totalPorMes)
+        .sort()
+        .forEach(mes => {
+          const fila = document.createElement('tr');
+          fila.innerHTML = `
+            <td>${mesesFull(mes)}</td>
+            <td>$${totalPorMes[mes].toFixed(2)}</td>
+          `;
+          tbody.appendChild(fila);
+        });
+    }
+
+    function guardarDatos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consumos));
+    }
+
+    function cargarDatos() {
+      const datosGuardados = localStorage.getItem(STORAGE_KEY);
+      if (datosGuardados) {
+        try {
+          consumos = JSON.parse(datosGuardados);
+        } catch (e) {
+          console.error("Error al cargar datos", e);
+        }
+      }
+    }
+
+    function renderizarDatos() {
+      const tbody = document.querySelector('#tablaConsumos tbody');
+      tbody.innerHTML = '';
+
+      consumos.forEach((item, index) => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${item.concepto}</td>
+          <td>$${parseFloat(item.total).toFixed(2)}</td>
+          <td>${item.cuotas || '-'}</td>
+          <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
+          <td>${item.tipo === 'fijo' ? 'Fijo' : 'Normal'}</td>
+          <td>
+            <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(fila);
+      });
+
+      actualizarResumenMensual();
+    }
+
+    // Inicialización
+    cargarDatos();
+    renderizarDatos();
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(registration => console.log('SW registrado'))
+          .catch(error => console.log('SW registro falló:', error));
+      });
+    }
+  </script>
+</body>
+</html>
