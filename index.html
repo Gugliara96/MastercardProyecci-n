@@ -30,7 +30,7 @@
       border-radius: 10px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    input[type="number"], input[type="text"] {
+    input[type="number"], input[type="text"], textarea {
       width: calc(100% - 20px);
       padding: 10px;
       margin: 5px 0 15px 0;
@@ -59,12 +59,12 @@
       background-color: #f39c12;
       color: white;
     }
-    .btn-editar {
-      background-color: #f39c12;
+    .btn-rellenar {
+      background-color: #3498db;
       color: white;
     }
-    .btn-eliminar {
-      background-color: #e74c3c;
+    .btn-importar {
+      background-color: #8e44ad;
       color: white;
     }
     table {
@@ -106,7 +106,14 @@
       <div class="botones">
         <button type="submit" class="btn-agregar-normal">Agregar Consumo</button>
         <button type="button" class="btn-agregar-fijo" onclick="agregarConsumoFijo()">Agregar Fijo</button>
+        <button type="button" class="btn-rellenar" onclick="rellenarEjemplo()">Rellenar Ejemplo</button>
       </div>
+
+      <hr style="margin: 20px 0;" />
+
+      <label for="importData">Importar Datos:</label>
+      <textarea id="importData" rows="4" placeholder="Pega aquí tus datos guardados..."></textarea>
+      <button type="button" class="btn-import btn-importar" onclick="importarDatos()">Importar Datos</button>
     </form>
 
     <h2 style="margin-top: 30px;">Consumos Registrados</h2>
@@ -258,38 +265,32 @@
       document.getElementById('consumoForm').reset();
     });
 
-    // Agregar consumo fijo (sin cuotas, repetido indefinidamente)
+    // Agregar consumo fijo
     function agregarConsumoFijo() {
       const concepto = prompt("Concepto del gasto fijo:", "Luz");
       const monto = parseFloat(prompt("Monto mensual:", "50"));
-
-      if (!concepto || isNaN(monto)) {
-        alert("Completa todos los campos correctamente.");
-        return;
-      }
-
       const duracionMeses = parseInt(prompt("Duración en meses (ej: 12)", "12"));
-      if (isNaN(duracionMeses) || duracionMeses <= 0) {
-        alert("Duración inválida.");
+
+      if (!concepto || isNaN(monto) || isNaN(duracionMeses) || duracionMeses <= 0) {
+        alert("Completa todos los campos correctamente.");
         return;
       }
 
       const fechaActual = new Date();
       const proyecciones = [];
-      const montoPorCuota = monto.toFixed(2);
 
       for (let i = 1; i <= duracionMeses; i++) {
         const fecha = new Date(fechaActual);
         fecha.setMonth(fecha.getMonth() + i);
         const mesAnio = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-        proyecciones.push({ mes: mesAnio, monto: parseFloat(montoPorCuota) });
+        proyecciones.push({ mes: mesAnio, monto });
       }
 
       const nuevoConsumo = {
         concepto,
         total: monto.toFixed(2),
         cuotas: null,
-        montoPorCuota: parseFloat(montoPorCuota),
+        montoPorCuota: monto.toFixed(2),
         tipo: 'fijo',
         proyecciones
       };
@@ -299,87 +300,36 @@
       renderizarDatos();
     }
 
+    // Rellenar ejemplo automático
+    function rellenarEjemplo() {
+      document.getElementById('concepto').value = "Zapatillas";
+      document.getElementById('monto').value = "150";
+      document.getElementById('cuotas').value = "3";
+    }
+
+    // Importar datos desde texto
+    function importarDatos() {
+      const data = document.getElementById('importData').value;
+      try {
+        const datos = JSON.parse(data);
+        if (Array.isArray(datos)) {
+          consumos = datos;
+          guardarDatos();
+          renderizarDatos();
+          alert("Datos importados correctamente.");
+        } else {
+          alert("Formato inválido. Debe ser un arreglo de consumos.");
+        }
+      } catch (e) {
+        alert("No se pudo interpretar los datos. Usa formato JSON válido.");
+      }
+    }
+
     // Inicialización
     cargarDatos();
     renderizarDatos();
 
-    function cargarDatos() {
-      const datosGuardados = localStorage.getItem(STORAGE_KEY);
-      if (datosGuardados) {
-        try {
-          consumos = JSON.parse(datosGuardados);
-        } catch (e) {
-          console.error("Error al cargar datos", e);
-        }
-      }
-    }
-
-    function guardarDatos() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consumos));
-    }
-
-    function renderizarDatos() {
-      const tbody = document.querySelector('#tablaConsumos tbody');
-      tbody.innerHTML = '';
-
-      consumos.forEach((item, index) => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-          <td>${item.concepto}</td>
-          <td>$${parseFloat(item.total).toFixed(2)}</td>
-          <td>${item.cuotas || '-'}</td>
-          <td>$${parseFloat(item.montoPorCuota).toFixed(2)}</td>
-          <td>${item.tipo === 'fijo' ? 'Fijo' : 'Normal'}</td>
-          <td>
-            <button class="btn-eliminar" onclick="eliminarConsumo(${index})">Eliminar</button>
-          </td>
-        `;
-        tbody.appendChild(fila);
-      });
-
-      actualizarResumenMensual();
-    }
-
-    function actualizarResumenMensual() {
-      const tbody = document.querySelector('#tablaResumenMensual tbody');
-      tbody.innerHTML = '';
-      const totalPorMes = {};
-
-      consumos.forEach(c => {
-        c.proyecciones.forEach(p => {
-          if (!totalPorMes[p.mes]) totalPorMes[p.mes] = 0;
-          totalPorMes[p.mes] += p.monto;
-        });
-      });
-
-      Object.keys(totalPorMes)
-        .sort()
-        .forEach(mes => {
-          const fila = document.createElement('tr');
-          fila.innerHTML = `
-            <td>${mesesFull(mes)}</td>
-            <td>$${totalPorMes[mes].toFixed(2)}</td>
-          `;
-          tbody.appendChild(fila);
-        });
-    }
-
-    function mesesFull(mesAnio) {
-      const [anio, mes] = mesAnio.split('-');
-      const fecha = new Date(anio, mes - 1);
-      const opciones = { month: 'long', year: 'numeric' };
-      return new Intl.DateTimeFormat('es-ES', opciones).format(fecha).toUpperCase();
-    }
-
-    function eliminarConsumo(index) {
-      if (confirm("¿Estás seguro de eliminar este consumo?")) {
-        consumos.splice(index, 1);
-        guardarDatos();
-        renderizarDatos();
-      }
-    }
-
-    // Service Worker para instalación offline
+    // Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js')
