@@ -1,21 +1,25 @@
-{
-  "name": "Mastercard Proyección",
-  "short_name": "Proyección",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "description": "App para proyectar consumos con tarjeta de crédito.",
-  "theme_color": "#006464",
-  "icons": [
-    {
-      "src": "icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
+[
+  {
+    "concepto": "Internet",
+    "total": "40.00",
+    "montoPorCuota": "40.00",
+    "tipo": "fijo",
+    "proyecciones": [
+      { "mes": "2025-06", "monto": 40 },
+      { "mes": "2025-07", "monto": 40 },
+      { "mes": "2025-08", "monto": 40 }
+    ]
+  },
+  {
+    "concepto": "Zapatillas",
+    "total": "150.00",
+    "cuotas": 3,
+    "montoPorCuota": "50.00",
+    "tipo": "normal",
+    "proyecciones": [
+      { "mes": "2025-06", "monto": 50 },
+      { "mes": "2025-07", "monto": 50 },
+      { "mes": "2025-08", "monto": 50 }
+    ]
+  }
+]
